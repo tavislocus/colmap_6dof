@@ -27,15 +27,11 @@ PyPosePrior.def(py::init<>())
     .def(py::init<const Eigen::Vector3d&>(), "position"_a)
     .def(py::init<const Eigen::Vector3d&, const PosePriorCoordinateSystem>(),
          "position"_a, "coordinate_system"_a)
-    .def(py::init<const Eigen::Vector3d&, const Eigen::Matrix3d&>(),
-         "position"_a, "covariance"_a)
-    .def(py::init<const Eigen::Vector3d&, const Eigen::Matrix3d&, const PosePriorCoordinateSystem>(),
+    .def(py::init<const Eigen::Vector3d&, const Eigen::Matrix6d&, const PosePriorCoordinateSystem>(),
          "position"_a, "covariance"_a, "coordinate_system"_a)
-    .def(py::init<const Eigen::Quaterniond&, const PosePriorCoordinateSystem>(),
-         "rotation"_a, "coordinate_system"_a)
     .def(py::init<const Eigen::Vector3d&, const Eigen::Quaterniond&, const PosePriorCoordinateSystem>(),
          "position"_a, "rotation"_a, "coordinate_system"_a)
-    .def(py::init<const Eigen::Vector3d&, const Eigen::Quaterniond&, const Eigen::Matrix3d&, const PosePriorCoordinateSystem>(),
+    .def(py::init<const Eigen::Vector3d&, const Eigen::Quaterniond&, const Eigen::Matrix6d&, const PosePriorCoordinateSystem>(),
          "position"_a, "rotation"_a, "covariance"_a, "coordinate_system"_a)
 
          // --- Properties ---
