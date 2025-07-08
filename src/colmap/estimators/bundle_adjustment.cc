@@ -886,10 +886,10 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
         prior_options_(prior_options),
         pose_priors_(std::move(pose_priors)),
         reconstruction_(reconstruction) {
-    const bool use_prior_position = AlignReconstruction();
+    const bool use_prior_pose = AlignReconstruction();
 
     // Fix 7-DOFs of BA problem if not enough valid pose priors.
-    if (use_prior_position) {
+    if (use_prior_pose) {
       // Normalize the reconstruction to avoid any numerical instability but do
       // not transform priors as they will be transformed when added to
       // ceres::Problem.
@@ -901,11 +901,19 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
     default_bundle_adjuster_ = std::make_unique<DefaultBundleAdjuster>(
         options_, config_, reconstruction);
 
-    if (use_prior_position) {
+    if (use_prior_pose) {
       if (prior_options_.use_robust_loss_on_prior_position) {
-        prior_loss_function_ = std::make_unique<ceres::CauchyLoss>(
+        prior_loss_function_ = std::make_unique<ceres::CauchyLoss>( // This is only position?!
             prior_options_.prior_position_loss_scale);
       }
+
+      // (Optional) rotation robust loss
+      // if (prior_options_.use_prior_rotation &&
+      //     prior_options_.use_robust_loss_on_prior_rotation) {
+      //   prior_rotation_loss_function_ = std::make_unique<ceres::CauchyLoss>(
+      //       prior_options_.prior_rotation_loss_scale);
+      // }
+
 
       for (const image_t image_id : config_.Images()) {
         const auto pose_prior_it = pose_priors_.find(image_id);
@@ -970,14 +978,14 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
     if (!problem->HasParameterBlock(cam_from_world_translation)) {
       return;
     }
-
     // cam_from_world.rotation is normalized in AddImageToProblem()
     double* cam_from_world_rotation = cam_from_world.rotation.coeffs().data();
+    Rigid3d prior_pose(prior.rotation, normalized_from_metric_ * prior.position); // What is this normalisation?
 
+    // ceres::CostFunction* Create takes cov and arg   - two args??
     problem->AddResidualBlock(
-        CovarianceWeightedCostFunctor<AbsolutePosePositionPriorCostFunctor>::
-            Create(prior.position_covariance,
-                   normalized_from_metric_ * prior.position),
+        CovarianceWeightedCostFunctor<AbsolutePosePriorCostFunctor>::
+            Create(prior.covariance, prior_pose),
         prior_loss_function_.get(),
         cam_from_world_rotation,
         cam_from_world_translation);
@@ -993,8 +1001,8 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
       for (const auto& [_, pose_prior] : pose_priors_) {
         if (pose_prior.IsCovarianceValid()) {
           const double max_stddev =
-              std::sqrt(Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(
-                            pose_prior.position_covariance)
+              std::sqrt(Eigen::SelfAdjointEigenSolver<Eigen::Matrix6d>(
+                            pose_prior.covariance)
                             .eigenvalues()
                             .maxCoeff());
           max_stddev_sum += max_stddev;

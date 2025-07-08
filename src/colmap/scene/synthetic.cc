@@ -36,6 +36,8 @@
 #include "colmap/util/eigen_alignment.h"
 
 #include <Eigen/Geometry>
+#include <Eigen/Dense>
+
 
 namespace colmap {
 namespace {
@@ -177,6 +179,7 @@ void SynthesizeDataset(const SyntheticDatasetOptions& options,
   THROW_CHECK_GE(options.sensor_from_rig_rotation_stddev, 0.);
   THROW_CHECK_GE(options.point2D_stddev, 0.);
   THROW_CHECK_GE(options.prior_position_stddev, 0.);
+  THROW_CHECK_GE(options.prior_rotation_stddev, 0.);
 
   if (PRNG == nullptr) {
     SetPRNGSeed();
@@ -373,16 +376,30 @@ void SynthesizeDataset(const SyntheticDatasetOptions& options,
           PosePrior noisy_prior(proj_center,
                                 PosePrior::CoordinateSystem::CARTESIAN);
 
-          if (options.prior_position_stddev > 0.) {
+          if (options.prior_position_stddev > 0. ||
+              options.prior_rotation_stddev > 0.) {
             noisy_prior.position += Eigen::Vector3d(
                 RandomGaussian<double>(0, options.prior_position_stddev),
                 RandomGaussian<double>(0, options.prior_position_stddev),
-                RandomGaussian<double>(0, options.prior_position_stddev));
-            noisy_prior.position_covariance = options.prior_position_stddev *
-                                              options.prior_position_stddev *
-                                              Eigen::Matrix3d::Identity();
+                RandomGaussian<double>(0, options.prior_position_stddev)
+              );
+
+            noisy_prior.rotation = Eigen::Quaterniond::FromTwoVectors(
+                view_dir,
+                Eigen::Vector3d(0, 0, 1) +
+                    Eigen::Vector3d(RandomGaussian<double>(0, options.prior_rotation_stddev),
+                                    RandomGaussian<double>(0, options.prior_rotation_stddev),
+                                    RandomGaussian<double>(0, options.prior_rotation_stddev)));
+
+            noisy_prior.covariance = Eigen::Matrix6d::Identity();
+            noisy_prior.covariance(0,0) = options.prior_position_stddev * options.prior_position_stddev;
+            noisy_prior.covariance(1,1) = options.prior_position_stddev * options.prior_position_stddev;
+            noisy_prior.covariance(2,2) = options.prior_position_stddev * options.prior_position_stddev;
+            noisy_prior.covariance(3,3) = options.prior_rotation_stddev * options.prior_rotation_stddev;
+            noisy_prior.covariance(4,4) = options.prior_rotation_stddev * options.prior_rotation_stddev;
+            noisy_prior.covariance(5,5) = options.prior_rotation_stddev * options.prior_rotation_stddev;
           } else {
-            noisy_prior.position_covariance = Eigen::Matrix3d::Identity();
+            noisy_prior.covariance = Eigen::Matrix6d::Identity();
           }
 
           if (options.use_geographic_coords_prior) {

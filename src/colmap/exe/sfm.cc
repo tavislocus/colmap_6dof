@@ -61,7 +61,7 @@ ExtractExistingImages(const Reconstruction& reconstruction) {
 }
 
 void UpdateDatabasePosePriorsCovariance(const std::string& database_path,
-                                        const Eigen::Matrix3d& covariance) {
+                                        const Eigen::Matrix6d& covariance) {
   Database database(database_path);
   DatabaseTransaction database_transaction(&database);
 
@@ -72,7 +72,7 @@ void UpdateDatabasePosePriorsCovariance(const std::string& database_path,
   for (const auto& image : database.ReadAllImages()) {
     if (database.ExistsPosePrior(image.ImageId())) {
       PosePrior prior = database.ReadPosePrior(image.ImageId());
-      prior.position_covariance = covariance;
+      prior.covariance = covariance;
       database.UpdatePosePrior(image.ImageId(), prior);
     }
   }
@@ -356,6 +356,9 @@ int RunPosePriorMapper(int argc, char** argv) {
   double prior_position_std_x = 1.;
   double prior_position_std_y = 1.;
   double prior_position_std_z = 1.;
+  double prior_rotation_std_x = 0.1;
+  double prior_rotation_std_y = 0.1;
+  double prior_rotation_std_z = 0.1;
 
   OptionManager options;
   options.AddDatabaseOptions();
@@ -364,7 +367,7 @@ int RunPosePriorMapper(int argc, char** argv) {
   options.AddRequiredOption("output_path", &output_path);
   options.AddMapperOptions();
 
-  options.mapper->use_prior_position = true;
+  options.mapper->use_prior_pose = true;
 
   options.AddDefaultOption(
       "overwrite_priors_covariance",
@@ -374,6 +377,9 @@ int RunPosePriorMapper(int argc, char** argv) {
   options.AddDefaultOption("prior_position_std_x", &prior_position_std_x);
   options.AddDefaultOption("prior_position_std_y", &prior_position_std_y);
   options.AddDefaultOption("prior_position_std_z", &prior_position_std_z);
+  options.AddDefaultOption("prior_rotation_std_x", &prior_rotation_std_x);
+  options.AddDefaultOption("prior_rotation_std_y", &prior_rotation_std_y);
+  options.AddDefaultOption("prior_rotation_std_z", &prior_rotation_std_z);
   options.AddDefaultOption("use_robust_loss_on_prior_position",
                            &options.mapper->use_robust_loss_on_prior_position);
   options.AddDefaultOption("prior_position_loss_scale",
@@ -386,9 +392,10 @@ int RunPosePriorMapper(int argc, char** argv) {
   }
 
   if (overwrite_priors_covariance) {
-    const Eigen::Matrix3d covariance =
-        Eigen::Vector3d(
-            prior_position_std_x, prior_position_std_y, prior_position_std_z)
+    const Eigen::Matrix6d covariance =
+        Eigen::Vector6d(
+            prior_position_std_x, prior_position_std_y, prior_position_std_z,
+            prior_rotation_std_x, prior_rotation_std_y, prior_rotation_std_z)
             .cwiseAbs2()
             .asDiagonal();
     UpdateDatabasePosePriorsCovariance(*options.database_path, covariance);

@@ -123,7 +123,7 @@ struct IncrementalPipelineOptions {
   std::string ba_gpu_index = "-1";
 
   // Whether to use priors on the camera positions.
-  bool use_prior_position = false;
+  bool use_prior_pose = false;
 
   // Whether to use a robust loss on prior camera positions.
   bool use_robust_loss_on_prior_position = false;

@@ -718,15 +718,18 @@ PosePriorsTab::PosePriorsTab(QWidget* parent, Database* database)
   grid->addWidget(info_label_, 0, 0);
 
   table_widget_ = new QTableWidget(this);
-  table_widget_->setColumnCount(11);
+  table_widget_->setColumnCount(14);
 
   QStringList table_header;
   table_header << "image_id"
                << "name"
-               << "x"
+               << "x" // Position in world coordinates
                << "y"
-               << "z"
-               << "cov_xx"
+               << "z" 
+               << "roll" // Rotation as Euler angles
+               << "pitch"
+               << "yaw"
+               << "cov_xx" // Covariance
                << "cov_yy"
                << "cov_zz"
                << "cov_xy"
@@ -782,6 +785,7 @@ void PosePriorsTab::Reload() {
     table_widget_->setItem(
         row_idx, 1, new QTableWidgetItem(QString::fromStdString(image.Name())));
 
+    // Set position values
     table_widget_->setItem(
         row_idx, 2, new QTableWidgetItem(QString::number(prior.position[0])));
     table_widget_->setItem(
@@ -789,30 +793,28 @@ void PosePriorsTab::Reload() {
     table_widget_->setItem(
         row_idx, 4, new QTableWidgetItem(QString::number(prior.position[2])));
 
+    // Set rotation values as Euler angles
+    auto euler = prior.rotation.toRotationMatrix().eulerAngles(0, 1, 2);
     table_widget_->setItem(
-        row_idx,
-        5,
-        new QTableWidgetItem(QString::number(prior.position_covariance(0, 0))));
+        row_idx, 5, new QTableWidgetItem(QString::number(euler[0])));
     table_widget_->setItem(
-        row_idx,
-        6,
-        new QTableWidgetItem(QString::number(prior.position_covariance(1, 1))));
+        row_idx, 6, new QTableWidgetItem(QString::number(euler[1])));
     table_widget_->setItem(
-        row_idx,
-        7,
-        new QTableWidgetItem(QString::number(prior.position_covariance(2, 2))));
+        row_idx, 7, new QTableWidgetItem(QString::number(euler[2])));
+
+    // Set covariance values
     table_widget_->setItem(
-        row_idx,
-        8,
-        new QTableWidgetItem(QString::number(prior.position_covariance(0, 1))));
+        row_idx, 8, new QTableWidgetItem(QString::number(prior.covariance(0, 0))));
     table_widget_->setItem(
-        row_idx,
-        9,
-        new QTableWidgetItem(QString::number(prior.position_covariance(0, 2))));
+        row_idx, 9, new QTableWidgetItem(QString::number(prior.covariance(1, 1))));
     table_widget_->setItem(
-        row_idx,
-        10,
-        new QTableWidgetItem(QString::number(prior.position_covariance(1, 2))));
+        row_idx, 10, new QTableWidgetItem(QString::number(prior.covariance(2, 2))));
+    table_widget_->setItem(
+        row_idx, 11, new QTableWidgetItem(QString::number(prior.covariance(0, 1))));
+    table_widget_->setItem(
+        row_idx, 12, new QTableWidgetItem(QString::number(prior.covariance(0, 2))));
+    table_widget_->setItem(
+        row_idx, 13, new QTableWidgetItem(QString::number(prior.covariance(1, 2))));
     ++row_idx;
   }
   table_widget_->resizeColumnsToContents();

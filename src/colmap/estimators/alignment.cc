@@ -242,31 +242,62 @@ bool AlignReconstructionToPosePriors(
     const std::unordered_map<image_t, PosePrior>& tgt_pose_priors,
     const RANSACOptions& ransac_options,
     Sim3d* tgt_from_src) {
-  std::vector<Eigen::Vector3d> src;
-  std::vector<Eigen::Vector3d> tgt;
-  src.reserve(tgt_pose_priors.size());
-  tgt.reserve(tgt_pose_priors.size());
+
+  std::vector<Eigen::Vector3d> src_positions;
+  std::vector<Eigen::Vector3d> tgt_positions;
+  std::vector<Eigen::Quaterniond> src_rotations;
+  std::vector<Eigen::Quaterniond> tgt_rotations;
+
+  src_positions.reserve(tgt_pose_priors.size());
+  tgt_positions.reserve(tgt_pose_priors.size());
+  src_rotations.reserve(tgt_pose_priors.size());
+  tgt_rotations.reserve(tgt_pose_priors.size());
 
   for (const image_t image_id : src_reconstruction.RegImageIds()) {
     const auto pose_prior_it = tgt_pose_priors.find(image_id);
     if (pose_prior_it != tgt_pose_priors.end() &&
         pose_prior_it->second.IsValid()) {
       const auto& image = src_reconstruction.Image(image_id);
-      src.push_back(image.ProjectionCenter());
-      tgt.push_back(pose_prior_it->second.position);
+      src_positions.push_back(image.ProjectionCenter());
+      tgt_positions.push_back(pose_prior_it->second.position);
+
+      // Collect rotation if both source and prior have valid rotation
+      if (pose_prior_it->second.IsRotationValid() && image.HasPose()) {
+        src_rotations.push_back(image.CamFromWorld().rotation);
+        tgt_rotations.push_back(pose_prior_it->second.rotation);
+      }
+      
     }
   }
 
-  if (src.size() < 3) {
+  if (src_positions.size() < 3) {
     LOG(WARNING) << "Not enough valid pose priors for alignment";
     return false;
   }
 
+
+  // // If enough rotation pairs, use translation+rotation alignment
+  // if (src_rotations.size() == src_positions.size() && src_rotations.size() >= 3) {
+  //   if (ransac_options.max_error > 0) {
+  //     return EstimateSim3dWithRotationRobust(src_positions, tgt_positions,
+  //                                            src_rotations, tgt_rotations,
+  //                                            ransac_options, *tgt_from_src).success;
+  //   }
+  //   return EstimateSim3dWithRotation(src_positions, tgt_positions,
+  //                                    src_rotations, tgt_rotations,
+  //                                    *tgt_from_src);
+  // }
+
+
+
+
+  // Fallback: Only positions (legacy behavior)
   if (ransac_options.max_error > 0) {
-    return EstimateSim3dRobust(src, tgt, ransac_options, *tgt_from_src).success;
+    return EstimateSim3dRobust(src_positions, tgt_positions, ransac_options, *tgt_from_src).success;
   }
-  return EstimateSim3d(src, tgt, *tgt_from_src);
+  return EstimateSim3d(src_positions, tgt_positions, *tgt_from_src);
 }
+
 
 bool AlignReconstructionsViaReprojections(
     const Reconstruction& src_reconstruction,

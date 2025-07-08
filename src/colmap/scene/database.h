@@ -380,6 +380,7 @@ class Database {
   sqlite3_stmt* sql_stmt_add_frame_ = nullptr;
   sqlite3_stmt* sql_stmt_add_frame_data_ = nullptr;
   sqlite3_stmt* sql_stmt_add_image_ = nullptr;
+  sqlite3_stmt* sql_stmt_add_pose_prior_ = nullptr;
 
   // update_*
   sqlite3_stmt* sql_stmt_update_rig_ = nullptr;

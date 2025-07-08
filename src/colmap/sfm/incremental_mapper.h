@@ -119,7 +119,7 @@ class IncrementalMapper {
     bool fix_existing_frames = false;
 
     // Whether to use prior camera positions
-    bool use_prior_position = false;
+    bool use_prior_pose = false;
 
     // Whether to use a robust loss on prior locations
     bool use_robust_loss_on_prior_position = false;
@@ -127,6 +127,16 @@ class IncrementalMapper {
     // Threshold on the residual for the robust loss
     // (chi2 for 3DOF at 95% = 7.815)
     double prior_position_loss_scale = 7.815;
+
+    // Whether to use prior camera rotation
+    bool use_prior_rotation = false;
+
+    // Whether to use a robust loss on prior locations
+    bool use_robust_loss_on_prior_rotation = false;
+
+    // Threshold on the residual for the robust loss
+    // (chi2 for 3DOF at 95% = 7.815)
+    double prior_rotation_loss_scale = 7.815;
 
     // Number of threads.
     int num_threads = -1;

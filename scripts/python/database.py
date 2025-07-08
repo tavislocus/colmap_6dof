@@ -67,6 +67,8 @@ CREATE_POSE_PRIORS_TABLE = """CREATE TABLE IF NOT EXISTS pose_priors (
     position BLOB,
     coordinate_system INTEGER NOT NULL,
     position_covariance BLOB,
+    rotation BLOB,
+    rotation_covariance BLOB,
     FOREIGN KEY(image_id) REFERENCES images(image_id) ON DELETE CASCADE)"""
 
 CREATE_TWO_VIEW_GEOMETRIES_TABLE = """
@@ -208,18 +210,20 @@ class COLMAPDatabase(sqlite3.Connection):
         return cursor.lastrowid
 
     def add_pose_prior(
-        self, image_id, position, coordinate_system=-1, position_covariance=None
+        self, image_id, position, coordinate_system=-1, position_covariance=None, rotation=None, rotation_covariance=None
     ):
         position = np.asarray(position, dtype=np.float64)
         if position_covariance is None:
             position_covariance = np.full((3, 3), np.nan, dtype=np.float64)
         self.execute(
-            "INSERT INTO pose_priors VALUES (?, ?, ?, ?)",
+            "INSERT INTO pose_priors VALUES (?, ?, ?, ?, ?, ?)",
             (
                 image_id,
                 array_to_blob(position),
                 coordinate_system,
                 array_to_blob(position_covariance),
+                array_to_blob(rotation) if rotation is not None else None,
+                array_to_blob(rotation_covariance) if rotation_covariance is not None else None,
             ),
         )
 

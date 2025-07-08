@@ -401,6 +401,29 @@ struct AbsolutePosePositionPriorCostFunctor
   const Eigen::Vector3d position_in_world_prior_;
 };
 
+// 3-DoF error on the camera rotation in the world coordinate frame.
+struct AbsolutePoseRotationPriorCostFunctor
+    : public AutoDiffCostFunctor<AbsolutePoseRotationPriorCostFunctor, 3, 4> {
+ public:
+  explicit AbsolutePoseRotationPriorCostFunctor(const Eigen::Quaterniond& prior_rotation)
+      : prior_rotation_inv_(prior_rotation.conjugate()) {}
+
+  template <typename T>
+  bool operator()(const T* const cam_from_world_rotation,
+                  T* residuals_ptr) const {
+    // Residual: param_from_prior_rotation = q_param * q_prior_inv
+    const Eigen::Quaternion<T> param_from_prior_rotation =
+        EigenQuaternionMap<T>(cam_from_world_rotation) * prior_rotation_inv_.cast<T>();
+
+    EigenQuaternionToAngleAxis(param_from_prior_rotation.coeffs().data(), residuals_ptr);
+    // residuals_ptr: 3-vector angle-axis difference
+    return true;
+  }
+
+ private:
+  const Eigen::Quaterniond prior_rotation_inv_;
+};
+
 // 6-DoF error between two absolute camera poses based on a prior on their
 // relative pose, with identical scale for the translation. The residual is
 // computed in the frame of camera i. Its first and last three components
