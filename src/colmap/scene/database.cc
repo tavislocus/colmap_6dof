@@ -714,9 +714,16 @@ PosePrior Database::ReadPosePrior(const image_t image_id) const {
 
   SQLITE3_CALL(sqlite3_bind_int64(sql_stmt_read_pose_prior_, 1, image_id));
 
+
   PosePrior prior;
   const int rc = SQLITE3_CALL(sqlite3_step(sql_stmt_read_pose_prior_));
   if (rc == SQLITE_ROW) {
+    prior.position = ReadStaticMatrixBlob<Eigen::Vector3d>(sql_stmt_read_pose_prior_, rc, 1);
+    prior.coordinate_system = static_cast<PosePrior::CoordinateSystem>(sqlite3_column_int64(sql_stmt_read_pose_prior_, 2));
+    prior.covariance = ReadStaticMatrixBlob<Eigen::Matrix6d>(sql_stmt_read_pose_prior_, rc, 3);
+
+    const Eigen::Vector4d quat_wxyz = ReadStaticMatrixBlob<Eigen::Vector4d>(sql_stmt_read_pose_prior_, rc, 4);
+    prior.rotation = Eigen::Quaterniond(quat_wxyz(0), quat_wxyz(1), quat_wxyz(2), quat_wxyz(3));
     prior.position = ReadStaticMatrixBlob<Eigen::Vector3d>(sql_stmt_read_pose_prior_, rc, 1);
     prior.coordinate_system = static_cast<PosePrior::CoordinateSystem>(sqlite3_column_int64(sql_stmt_read_pose_prior_, 2));
     prior.covariance = ReadStaticMatrixBlob<Eigen::Matrix6d>(sql_stmt_read_pose_prior_, rc, 3);
@@ -1049,8 +1056,11 @@ void Database::WritePosePrior(const image_t image_id, const PosePrior& pose_prio
   Sqlite3StmtContext context(sql_stmt_write_pose_prior_);
 
   SQLITE3_CALL(sqlite3_bind_int64(sql_stmt_write_pose_prior_, 1, image_id));
+
   WriteStaticMatrixBlob(sql_stmt_write_pose_prior_, pose_prior.position, 2);
+
   SQLITE3_CALL(sqlite3_bind_int64(sql_stmt_write_pose_prior_, 3, static_cast<sqlite3_int64>(pose_prior.coordinate_system)));
+
   WriteStaticMatrixBlob(sql_stmt_write_pose_prior_, pose_prior.covariance, 4);
 
   const Eigen::Vector4d quat_wxyz(pose_prior.rotation.w(), pose_prior.rotation.x(), pose_prior.rotation.y(), pose_prior.rotation.z());

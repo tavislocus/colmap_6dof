@@ -5,6 +5,7 @@
 #include "colmap/optim/ransac.h"
 #include "colmap/scene/reconstruction.h"
 #include "colmap/geometry/pose_prior.h"
+#include "colmap/geometry/pose_prior.h"
 #include "colmap/util/logging.h"
 
 #include "pycolmap/pybind11_extension.h"
@@ -117,10 +118,12 @@ void BindAlignmentEstimator(py::module& m) {
   m.def(
       "align_reconstruction_to_pose_priors",
       [](const Reconstruction& src,
+         const std::vector<std::string>& tgt_image_names,
          const std::unordered_map<image_t, PosePrior>& tgt_pose_priors,
          const RANSACOptions& ransac_options) -> py::typing::Optional<Sim3d> {
         Sim3d tgt_from_src;
         if (!AlignReconstructionToPosePriors(src,
+                                            tgt_image_names,
                                             tgt_pose_priors,
                                             ransac_options,
                                             &tgt_from_src)) {
@@ -129,6 +132,7 @@ void BindAlignmentEstimator(py::module& m) {
         return py::cast(tgt_from_src);
       },
       "src"_a,
+      "tgt_image_names"_a,
       "tgt_pose_priors"_a,
       "ransac_options"_a);
 
