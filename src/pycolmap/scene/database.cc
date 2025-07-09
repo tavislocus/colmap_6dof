@@ -37,6 +37,7 @@ void BindDatabase(py::module& m) {
       .def("close", &Database::Close)
       .def("__enter__", [](Database& self) { return &self; })
       .def("__exit__", [](Database& self, const py::args&) { self.Close(); })
+      .def("create_tables", &Database::CreateTables)
       .def("exists_camera", &Database::ExistsCamera, "camera_id"_a)
       .def("exists_image", &Database::ExistsImage, "image_id"_a)
       .def("exists_image", &Database::ExistsImageWithName, "name"_a)

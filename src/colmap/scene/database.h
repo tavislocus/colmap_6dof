@@ -293,7 +293,7 @@ class Database {
                     const Database& database2,
                     Database* merged_database);
 
- private:
+ public:
   friend class DatabaseTransaction;
 
   // Combine multiple queries into one transaction by wrapping a code section

@@ -27,6 +27,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <iostream>
+
 #include "colmap/scene/database.h"
 
 #include "colmap/util/endian.h"
@@ -44,7 +46,7 @@ struct Sqlite3StmtContext {
   explicit Sqlite3StmtContext(sqlite3_stmt* sql_stmt) : sql_stmt_(sql_stmt) {}
   ~Sqlite3StmtContext() { SQLITE3_CALL(sqlite3_reset(sql_stmt_)); }
 
- private:
+ public: // private?
   sqlite3_stmt* sql_stmt_;
 };
 
@@ -1029,16 +1031,26 @@ image_t Database::WriteImage(const Image& image,
   return static_cast<image_t>(sqlite3_last_insert_rowid(database_));
 }
 
-void Database::WritePosePrior(const image_t image_id,
-                              const PosePrior& pose_prior) const {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void Database::WritePosePrior(const image_t image_id, const PosePrior& pose_prior) const {
   Sqlite3StmtContext context(sql_stmt_write_pose_prior_);
 
   SQLITE3_CALL(sqlite3_bind_int64(sql_stmt_write_pose_prior_, 1, image_id));
-
   WriteStaticMatrixBlob(sql_stmt_write_pose_prior_, pose_prior.position, 2);
-
   SQLITE3_CALL(sqlite3_bind_int64(sql_stmt_write_pose_prior_, 3, static_cast<sqlite3_int64>(pose_prior.coordinate_system)));
-
   WriteStaticMatrixBlob(sql_stmt_write_pose_prior_, pose_prior.covariance, 4);
 
   const Eigen::Vector4d quat_wxyz(pose_prior.rotation.w(), pose_prior.rotation.x(), pose_prior.rotation.y(), pose_prior.rotation.z());
@@ -1046,6 +1058,20 @@ void Database::WritePosePrior(const image_t image_id,
 
   SQLITE3_CALL(sqlite3_step(sql_stmt_write_pose_prior_));
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 void Database::WriteKeypoints(const image_t image_id,
                               const FeatureKeypoints& keypoints) const {
@@ -1760,6 +1786,7 @@ void Database::FinalizeSQLStatements() {
     SQLITE3_CALL(sqlite3_finalize(sql_stmt));
   }
 }
+
 
 void Database::CreateTables() const {
   CreateRigTable();
