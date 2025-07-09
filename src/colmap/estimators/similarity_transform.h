@@ -94,6 +94,36 @@ class SimilarityTransformEstimator {
                         std::vector<double>* residuals);
 };
 
+template <int kDim, bool kEstimateScale = true>
+class SimilarityPoseEstimator {
+ public:
+  using X_t = Eigen::Matrix<double, kDim, 1>;          // Position
+  using Q_t = Eigen::Quaterniond;                      // Rotation
+  struct M_t {                                         // Model: Sim3d + rotation
+    double scale = 1.0;
+    Eigen::Quaterniond rotation = Eigen::Quaterniond::Identity();
+    Eigen::Vector3d translation = Eigen::Vector3d::Zero();
+  };
+  static const int kMinNumSamples = kDim;
+
+  static void Estimate(const std::vector<X_t>& src_pos,
+                       const std::vector<X_t>& tgt_pos,
+                       const std::vector<Q_t>& src_rot,
+                       const std::vector<Q_t>& tgt_rot,
+                       std::vector<M_t>* models);
+
+  static void Residuals(const std::vector<X_t>& src_pos,
+                        const std::vector<X_t>& tgt_pos,
+                        const std::vector<Q_t>& src_rot,
+                        const std::vector<Q_t>& tgt_rot,
+                        const M_t& model,
+                        std::vector<double>* residuals);
+};
+
+
+
+
+
 bool EstimateRigid3d(const std::vector<Eigen::Vector3d>& src,
                      const std::vector<Eigen::Vector3d>& tgt,
                      Rigid3d& tgt_from_src);
@@ -113,6 +143,38 @@ EstimateSim3dRobust(const std::vector<Eigen::Vector3d>& src,
                     const std::vector<Eigen::Vector3d>& tgt,
                     const RANSACOptions& options,
                     Sim3d& tgt_from_src);
+
+
+
+// With Rotation - or adapt existing functions to optionally use it
+bool EstimateRigid3dWithRotation(const std::vector<Eigen::Vector3d>& src,
+                                 const std::vector<Eigen::Vector3d>& tgt,
+                                 const std::vector<Eigen::Quaterniond>& src_rot,
+                                 const std::vector<Eigen::Quaterniond>& tgt_rot,
+                                 Rigid3d& tgt_from_src);
+
+typename RANSAC<SimilarityPoseEstimator<3, false>>::Report
+EstimateRigid3WithRotationdRobust(const std::vector<Eigen::Vector3d>& src,
+                                  const std::vector<Eigen::Vector3d>& tgt,
+                                  const std::vector<Eigen::Quaterniond>& src_rot,
+                                  const std::vector<Eigen::Quaterniond>& tgt_rot,
+                                  const RANSACOptions& options,
+                                  Rigid3d& tgt_from_src);
+
+bool EstimateSim3dWithRotation(const std::vector<Eigen::Vector3d>& src,
+                               const std::vector<Eigen::Vector3d>& tgt,
+                               const std::vector<Eigen::Quaterniond>& src_rot,
+                               const std::vector<Eigen::Quaterniond>& tgt_rot,
+                               Sim3d& tgt_from_src);
+
+typename RANSAC<SimilarityPoseEstimator<3, true>>::Report
+EstimateSim3dWithRotationRobust(const std::vector<Eigen::Vector3d>& src,
+                                const std::vector<Eigen::Vector3d>& tgt,
+                                const std::vector<Eigen::Quaterniond>& src_rot,
+                                const std::vector<Eigen::Quaterniond>& tgt_rot,
+                                const RANSACOptions& options,
+                                Sim3d& tgt_from_src);
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Implementation
@@ -165,5 +227,92 @@ void SimilarityTransformEstimator<kDim, kEstimateScale>::Residuals(
         (tgt[i] - tgt_from_src * src[i].homogeneous()).squaredNorm();
   }
 }
+
+
+
+
+
+
+
+template <int kDim, bool kEstimateScale>
+void SimilarityPoseEstimator<kDim, kEstimateScale>::Estimate(
+    const std::vector<X_t>& src_pos,
+    const std::vector<X_t>& tgt_pos,
+    const std::vector<Q_t>& src_rot,
+    const std::vector<Q_t>& tgt_rot,
+    std::vector<M_t>* models) {
+  THROW_CHECK_EQ(src_pos.size(), tgt_pos.size());
+  THROW_CHECK_EQ(src_rot.size(), tgt_rot.size());
+  THROW_CHECK_EQ(src_pos.size(), src_rot.size());
+  THROW_CHECK_GE(src_pos.size(), kMinNumSamples);
+  THROW_CHECK(models != nullptr);
+
+  models->clear();
+
+  using MatrixType = Eigen::Matrix<double, kDim, Eigen::Dynamic>;
+  const Eigen::Map<const MatrixType> src_mat(reinterpret_cast<const double*>(src_pos.data()), kDim, src_pos.size());
+  const Eigen::Map<const MatrixType> tgt_mat(reinterpret_cast<const double*>(tgt_pos.data()), kDim, tgt_pos.size());
+
+  if (Eigen::FullPivLU<MatrixType>(src_mat).rank() < kMinNumSamples ||
+      Eigen::FullPivLU<MatrixType>(tgt_mat).rank() < kMinNumSamples) {
+    return;
+  }
+
+  // Umeyama: similarity for positions (including scale)
+  Eigen::Matrix<double, kDim, kDim + 1> sol =
+      Eigen::umeyama(src_mat, tgt_mat, kEstimateScale)
+            .template topLeftCorner<kDim, kDim + 1>();
+
+  double scale = 1.0;
+  Eigen::Matrix3d R = sol.template topLeftCorner<3,3>();
+  if constexpr (kEstimateScale) {
+    // For 3D - cube root of determinant to get scale
+    scale = std::cbrt(R.determinant());
+    R /= scale;
+  }
+  Eigen::Quaterniond R_pos(R);
+
+  // Mean relative quaternion for rotations
+  Eigen::Matrix<double, 4, Eigen::Dynamic> quat_stack(4, src_rot.size());
+  for (size_t i = 0; i < src_rot.size(); ++i) {
+    Eigen::Quaterniond delta = tgt_rot[i] * src_rot[i].conjugate();
+    quat_stack.col(i) = delta.coeffs();
+  }
+  Eigen::Vector4d mean_q = quat_stack.rowwise().mean();
+  Eigen::Quaterniond mean_rel_rot(mean_q);
+  mean_rel_rot.normalize();
+
+  Eigen::Quaterniond final_rot = mean_rel_rot * R_pos;
+
+  models->resize(1);
+  (*models)[0].scale = scale;
+  (*models)[0].rotation = final_rot;
+  (*models)[0].translation = sol.template topRightCorner<3,1>();
+}
+
+template <int kDim, bool kEstimateScale>
+void SimilarityPoseEstimator<kDim, kEstimateScale>::Residuals(
+    const std::vector<X_t>& src_pos,
+    const std::vector<X_t>& tgt_pos,
+    const std::vector<Q_t>& src_rot,
+    const std::vector<Q_t>& tgt_rot,
+    const M_t& model,
+    std::vector<double>* residuals) {
+  THROW_CHECK_EQ(src_pos.size(), tgt_pos.size());
+  THROW_CHECK_EQ(src_rot.size(), tgt_rot.size());
+  THROW_CHECK_EQ(src_pos.size(), src_rot.size());
+  const size_t N = src_pos.size();
+  residuals->resize(N);
+  for (size_t i = 0; i < N; ++i) {
+    // Position error
+    Eigen::Vector3d pred_pos = model.scale * (model.rotation * src_pos[i]) + model.translation;
+    double pos_err = (tgt_pos[i] - pred_pos).squaredNorm();
+    // Rotation error (squared angular distance in radians)
+    Eigen::Quaterniond pred_rot = model.rotation * src_rot[i];
+    double rot_err = pred_rot.angularDistance(tgt_rot[i]);
+    (*residuals)[i] = pos_err + rot_err * rot_err; // Weighting on rotation???
+  }
+}
+
 
 }  // namespace colmap

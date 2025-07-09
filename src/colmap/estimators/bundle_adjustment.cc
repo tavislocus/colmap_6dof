@@ -980,6 +980,7 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
     }
     // cam_from_world.rotation is normalized in AddImageToProblem()
     double* cam_from_world_rotation = cam_from_world.rotation.coeffs().data();
+    
     Rigid3d prior_pose(prior.rotation, normalized_from_metric_ * prior.position); // What is this normalisation?
 
     // ceres::CostFunction* Create takes cov and arg   - two args??
