@@ -42,6 +42,7 @@
 #include "colmap/util/misc.h"
 #include "colmap/util/opengl_utils.h"
 
+#include <iostream>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 
@@ -401,6 +402,8 @@ int RunPosePriorMapper(int argc, char** argv) {
     UpdateDatabasePosePriorsCovariance(*options.database_path, covariance);
   }
 
+  std::cout << "Declaring reconstruction manager" << std::endl;
+  
   auto reconstruction_manager = std::make_shared<ReconstructionManager>();
   if (input_path != "") {
     if (!ExistsDir(input_path)) {
@@ -421,7 +424,7 @@ int RunPosePriorMapper(int argc, char** argv) {
     std::tie(fixed_image_ids, orig_fixed_image_positions) =
         ExtractExistingImages(*reconstruction_manager->Get(0));
   }
-
+  std::cout << "Declaring pipeline" << std::endl;
   IncrementalPipeline mapper(options.mapper,
                              *options.image_path,
                              *options.database_path,
@@ -447,6 +450,7 @@ int RunPosePriorMapper(int argc, char** argv) {
     });
   }
 
+  // FAILING HERE!
   mapper.Run();
 
   if (reconstruction_manager->Size() == 0) {
