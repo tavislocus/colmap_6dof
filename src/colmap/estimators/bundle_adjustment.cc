@@ -914,7 +914,6 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
       //       prior_options_.prior_rotation_loss_scale);
       // }
 
-
       for (const image_t image_id : config_.Images()) {
         const auto pose_prior_it = pose_priors_.find(image_id);
         if (pose_prior_it != pose_priors_.end()) {
@@ -969,7 +968,12 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
     }
 
     THROW_CHECK(image.HasPose());
-    Rigid3d& cam_from_world = image.FramePtr()->RigFromWorld();
+    // Rigid3d& cam_from_world = image.FramePtr()->RigFromWorld();
+    Rigid3d cam_from_world = image.CamFromWorld();//->SensorFromWorld();
+    // NOTE - does this need to change it??
+
+
+
 
     std::shared_ptr<ceres::Problem>& problem =
         default_bundle_adjuster_->Problem();
