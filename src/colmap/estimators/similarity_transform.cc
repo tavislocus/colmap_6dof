@@ -67,13 +67,15 @@ EstimateRigidOrSim3dRobust(const std::vector<Eigen::Vector3d>& src,
 // Robust and non-robust estimators for similarity with rotation
 namespace {
 
+
 template <bool kEstimateScale>
 inline bool EstimateRigidOrSim3dWithRotation(
     const std::vector<Eigen::Vector3d>& src_pos,
     const std::vector<Eigen::Vector3d>& tgt_pos,
     const std::vector<Eigen::Quaterniond>& src_rot,
     const std::vector<Eigen::Quaterniond>& tgt_rot,
-    typename SimilarityPoseEstimator<3, kEstimateScale>::M_t& tgt_from_src) {
+    typename SimilarityPoseEstimator<3, kEstimateScale>::M_t& model_out)
+{
   using Estimator = SimilarityPoseEstimator<3, kEstimateScale>;
   std::vector<typename Estimator::M_t> models;
   Estimator::Estimate(src_pos, tgt_pos, src_rot, tgt_rot, &models);
@@ -81,27 +83,12 @@ inline bool EstimateRigidOrSim3dWithRotation(
     return false;
   }
   THROW_CHECK_EQ(models.size(), 1);
-  tgt_from_src = models[0];
+  model_out = models[0];
   return true;
 }
 
-template <bool kEstimateScale>
-inline typename RANSAC<SimilarityPoseEstimator<3, kEstimateScale>>::Report
-EstimateRigidOrSim3dWithRotationRobust(
-    const std::vector<Eigen::Vector3d>& src_pos,
-    const std::vector<Eigen::Vector3d>& tgt_pos,
-    const std::vector<Eigen::Quaterniond>& src_rot,
-    const std::vector<Eigen::Quaterniond>& tgt_rot,
-    const RANSACOptions& options,
-    typename SimilarityPoseEstimator<3, kEstimateScale>::M_t& tgt_from_src) {
-  using Estimator = SimilarityPoseEstimator<3, kEstimateScale>;
-  LORANSAC<Estimator, Estimator> ransac(options);
-  auto report = ransac.Estimate(src_pos, tgt_pos, src_rot, tgt_rot);
-  if (report.success) {
-    tgt_from_src = report.model;
-  }
-  return report;
-}
+
+
 
 }  // namespace
 
@@ -154,61 +141,37 @@ EstimateSim3dRobust(const std::vector<Eigen::Vector3d>& src,
 }
 
 
+
 // Rotation
-// For rigid transform (no scale)
+
+
 bool EstimateRigid3dWithRotation(const std::vector<Eigen::Vector3d>& src_pos,
                                  const std::vector<Eigen::Vector3d>& tgt_pos,
                                  const std::vector<Eigen::Quaterniond>& src_rot,
                                  const std::vector<Eigen::Quaterniond>& tgt_rot,
                                  Rigid3d& tgt_from_src) {
-  SimilarityPoseEstimator<3, false>::M_t model;
+  using Estimator = SimilarityPoseEstimator<3, false>;
+  typename Estimator::M_t model;
   if (!EstimateRigidOrSim3dWithRotation<false>(src_pos, tgt_pos, src_rot, tgt_rot, model)) {
     return false;
   }
+  // Construct Rigid3d using estimated rotation and translation
   tgt_from_src = Rigid3d(model.rotation, model.translation);
   return true;
 }
 
-typename RANSAC<SimilarityPoseEstimator<3, false>>::Report
-EstimateRigid3dRobustWithRotation(const std::vector<Eigen::Vector3d>& src_pos,
-                                  const std::vector<Eigen::Vector3d>& tgt_pos,
-                                  const std::vector<Eigen::Quaterniond>& src_rot,
-                                  const std::vector<Eigen::Quaterniond>& tgt_rot,
-                                  const RANSACOptions& options,
-                                  Rigid3d& tgt_from_src) {
-  SimilarityPoseEstimator<3, false>::M_t model;
-  auto report = EstimateRigidOrSim3dWithRotationRobust<false>(
-      src_pos, tgt_pos, src_rot, tgt_rot, options, model);
-  tgt_from_src = Rigid3d(model.rotation, model.translation);
-  return report;
-}
-
-// For similarity transform (with scale)
 bool EstimateSim3dWithRotation(const std::vector<Eigen::Vector3d>& src_pos,
                                const std::vector<Eigen::Vector3d>& tgt_pos,
                                const std::vector<Eigen::Quaterniond>& src_rot,
                                const std::vector<Eigen::Quaterniond>& tgt_rot,
                                Sim3d& tgt_from_src) {
-  SimilarityPoseEstimator<3, true>::M_t model;
+  using Estimator = SimilarityPoseEstimator<3, true>;
+  typename Estimator::M_t model;
   if (!EstimateRigidOrSim3dWithRotation<true>(src_pos, tgt_pos, src_rot, tgt_rot, model)) {
     return false;
   }
   tgt_from_src = Sim3d(model.scale, model.rotation, model.translation);
   return true;
-}
-
-typename RANSAC<SimilarityPoseEstimator<3, true>>::Report
-EstimateSim3dRobustWithRotation(const std::vector<Eigen::Vector3d>& src_pos,
-                                const std::vector<Eigen::Vector3d>& tgt_pos,
-                                const std::vector<Eigen::Quaterniond>& src_rot,
-                                const std::vector<Eigen::Quaterniond>& tgt_rot,
-                                const RANSACOptions& options,
-                                Sim3d& tgt_from_src) {
-  SimilarityPoseEstimator<3, true>::M_t model;
-  auto report = EstimateRigidOrSim3dWithRotationRobust<true>(
-      src_pos, tgt_pos, src_rot, tgt_rot, options, model);
-  tgt_from_src = Sim3d(model.scale, model.rotation, model.translation);
-  return report;
 }
 
 

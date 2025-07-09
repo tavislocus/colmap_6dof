@@ -98,7 +98,9 @@ template <int kDim, bool kEstimateScale = true>
 class SimilarityPoseEstimator {
  public:
   using X_t = Eigen::Matrix<double, kDim, 1>;          // Position
-  using Q_t = Eigen::Quaterniond;                      // Rotation
+  using X_q = Eigen::Quaterniond;                      // Rotation
+  using Y_t = Eigen::Matrix<double, kDim, 1>;          // Position
+  using Y_q = Eigen::Quaterniond;                      // Rotation
   struct M_t {                                         // Model: Sim3d + rotation
     double scale = 1.0;
     Eigen::Quaterniond rotation = Eigen::Quaterniond::Identity();
@@ -107,21 +109,18 @@ class SimilarityPoseEstimator {
   static const int kMinNumSamples = kDim;
 
   static void Estimate(const std::vector<X_t>& src_pos,
-                       const std::vector<X_t>& tgt_pos,
-                       const std::vector<Q_t>& src_rot,
-                       const std::vector<Q_t>& tgt_rot,
+                       const std::vector<Y_t>& tgt_pos,
+                       const std::vector<X_q>& src_rot,
+                       const std::vector<Y_q>& tgt_rot,
                        std::vector<M_t>* models);
 
   static void Residuals(const std::vector<X_t>& src_pos,
-                        const std::vector<X_t>& tgt_pos,
-                        const std::vector<Q_t>& src_rot,
-                        const std::vector<Q_t>& tgt_rot,
+                        const std::vector<Y_t>& tgt_pos,
+                        const std::vector<X_q>& src_rot,
+                        const std::vector<Y_q>& tgt_rot,
                         const M_t& model,
                         std::vector<double>* residuals);
 };
-
-
-
 
 
 bool EstimateRigid3d(const std::vector<Eigen::Vector3d>& src,
@@ -237,9 +236,9 @@ void SimilarityTransformEstimator<kDim, kEstimateScale>::Residuals(
 template <int kDim, bool kEstimateScale>
 void SimilarityPoseEstimator<kDim, kEstimateScale>::Estimate(
     const std::vector<X_t>& src_pos,
-    const std::vector<X_t>& tgt_pos,
-    const std::vector<Q_t>& src_rot,
-    const std::vector<Q_t>& tgt_rot,
+    const std::vector<Y_t>& tgt_pos,
+    const std::vector<X_q>& src_rot,
+    const std::vector<Y_q>& tgt_rot,
     std::vector<M_t>* models) {
   THROW_CHECK_EQ(src_pos.size(), tgt_pos.size());
   THROW_CHECK_EQ(src_rot.size(), tgt_rot.size());
@@ -293,9 +292,9 @@ void SimilarityPoseEstimator<kDim, kEstimateScale>::Estimate(
 template <int kDim, bool kEstimateScale>
 void SimilarityPoseEstimator<kDim, kEstimateScale>::Residuals(
     const std::vector<X_t>& src_pos,
-    const std::vector<X_t>& tgt_pos,
-    const std::vector<Q_t>& src_rot,
-    const std::vector<Q_t>& tgt_rot,
+    const std::vector<Y_t>& tgt_pos,
+    const std::vector<X_q>& src_rot,
+    const std::vector<Y_q>& tgt_rot,
     const M_t& model,
     std::vector<double>* residuals) {
   THROW_CHECK_EQ(src_pos.size(), tgt_pos.size());

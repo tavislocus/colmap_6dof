@@ -279,11 +279,11 @@ bool AlignReconstructionToPosePriors(
   // ADD ROTATION ?
   // If enough rotation pairs, use translation+rotation alignment
   if (src_rotations.size() == src_positions.size() && src_rotations.size() >= 3) {
-    if (ransac_options.max_error > 0) {
-      return EstimateSim3dWithRotationRobust(src_positions, tgt_positions,
-                                             src_rotations, tgt_rotations,
-                                             ransac_options, *tgt_from_src).success;
-    }
+    // if (ransac_options.max_error > 0) { // Focus on this afterwards - not using for now
+    //   return EstimateSim3dWithRotationRobust(src_positions, tgt_positions,
+    //                                          src_rotations, tgt_rotations,
+    //                                          ransac_options, *tgt_from_src).success;
+    // }
     return EstimateSim3dWithRotation(src_positions, tgt_positions,
                                      src_rotations, tgt_rotations,
                                      *tgt_from_src);
