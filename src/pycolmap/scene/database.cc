@@ -149,10 +149,18 @@ void BindDatabase(py::module& m) {
             return std::make_pair(std::move(all_pair_ids),
                                   std::move(all_num_inliers));
           })
-      .def("write_camera",
-           &Database::WriteCamera,
+      .def("write_rig",
+           &Database::WriteRig,
            "camera"_a,
+           "use_rig_id"_a = false)
+     .def("write_camera",
+           &Database::WriteCamera,
+           "rig"_a,
            "use_camera_id"_a = false)
+     .def("write_frame",
+           &Database::WriteFrame,
+           "frame"_a,
+           "use_frame_id"_a = false)
       .def("write_image",
            &Database::WriteImage,
            "image"_a,
