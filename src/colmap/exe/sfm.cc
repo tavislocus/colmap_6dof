@@ -586,8 +586,8 @@ void RunPointTriangulatorImpl(
     const IncrementalPipelineOptions& options,
     const bool clear_points,
     const bool refine_intrinsics) {
-  THROW_CHECK_GE(reconstruction->NumRegImages(), 2)
-      << "Need at least two images for triangulation";
+  THROW_CHECK_GE(reconstruction->NumRegFrames(), 2)
+      << "Need at least two frames for triangulation";
   if (clear_points) {
     const Database database(database_path);
     reconstruction->DeleteAllPoints2DAndPoints3D();

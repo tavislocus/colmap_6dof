@@ -151,11 +151,19 @@ void BindReconstruction(py::module& m) {
            "Delete one observation from an image and the corresponding 3D "
            "point. Note that this deletes the entire 3D point, if the track "
            "has two elements prior to calling this method.")
-      .def("register_image",
+     .def("register_image",
+           &Reconstruction::RegisterImage,
+           "image_id"_a,
+           "Register an existing image.")
+     .def("deregister_image",
+           &Reconstruction::DeRegisterImage,
+           "image_id"_a,
+           "De-register an existing image.")
+      .def("register_frame",
            &Reconstruction::RegisterFrame,
            "frame_id"_a,
            "Register an existing frame.")
-      .def("deregister_image",
+      .def("deregister_frame",
            &Reconstruction::DeRegisterFrame,
            "frame_id"_a,
            "De-register an existing frame, and all its references.")

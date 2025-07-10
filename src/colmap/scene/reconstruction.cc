@@ -253,8 +253,15 @@ void Reconstruction::AddImage(class Image image) {
   } else {
     image.SetFramePtr(&frame);
   }
+
+  const bool is_registered = image.HasPose();
   const image_t image_id = image.ImageId();
   THROW_CHECK(images_.emplace(image_id, std::move(image)).second);
+
+  if (is_registered) {
+    THROW_CHECK_NE(image_id, kInvalidImageId);
+    RegisterImage(image_id);
+  }
 }
 
 void Reconstruction::AddPoint3D(const point3D_t point3D_id,
@@ -396,6 +403,13 @@ void Reconstruction::RegisterFrame(const frame_t frame_id) {
   }
 }
 
+void Reconstruction::RegisterImage(const image_t image_id) {
+  if (std::find(reg_image_ids_.begin(), reg_image_ids_.end(), image_id) ==
+      reg_image_ids_.end()) {
+    reg_image_ids_.push_back(image_id);
+  }
+}
+
 void Reconstruction::DeRegisterFrame(const frame_t frame_id) {
   class Frame& frame = Frame(frame_id);
   for (const data_t& data_id : frame.ImageIds()) {
@@ -413,6 +427,22 @@ void Reconstruction::DeRegisterFrame(const frame_t frame_id) {
   reg_frame_ids_.erase(
       std::remove(reg_frame_ids_.begin(), reg_frame_ids_.end(), frame_id),
       reg_frame_ids_.end());
+}
+
+void Reconstruction::DeRegisterImage(const image_t image_id) {
+  class Image& image = Image(image_id);
+  const auto num_points2D = image.NumPoints2D();
+  for (point2D_t point2D_idx = 0; point2D_idx < num_points2D; ++point2D_idx) {
+    if (image.Point2D(point2D_idx).HasPoint3D()) {
+      DeleteObservation(image_id, point2D_idx);
+    }
+  }
+  
+  // image.ResetPose(); // pose now in frame?
+  // Even necessary or juts to temporarily execute
+  reg_image_ids_.erase(
+      std::remove(reg_image_ids_.begin(), reg_image_ids_.end(), image_id),
+      reg_image_ids_.end());
 }
 
 Sim3d Reconstruction::Normalize(const bool fixed_scale,

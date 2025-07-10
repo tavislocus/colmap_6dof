@@ -171,6 +171,12 @@ class Reconstruction {
   // De-register an existing frame, and all its references.
   void DeRegisterFrame(frame_t frame_id);
 
+  // Register an existing image
+  void RegisterImage(image_t image_id);
+
+  // De-register an existing image, and all its references.
+  void DeRegisterImage(image_t image_id);
+
   // Normalize scene by scaling and translation to improve numerical stability
   // of algorithms.
   //
@@ -283,6 +289,7 @@ class Reconstruction {
   // to O(n) complexity on calls to RegisterFrame/DeRegisterFrame, because
   // we iterate very often over the set of registered frames.
   std::vector<frame_t> reg_frame_ids_;
+  std::vector<image_t> reg_image_ids_; // needed?
 
   // Total number of added 3D points, used to generate unique identifiers.
   point3D_t max_point3D_id_;
