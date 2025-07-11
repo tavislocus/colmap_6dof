@@ -208,9 +208,11 @@ Rigid3d Frame::SensorFromWorld(sensor_t sensor_id) const {
   } else {
     Rigid3d sensor_from_rig = rig_ptr_->SensorFromRig(sensor_id);
     Rigid3d rig_from_world = RigFromWorld();
-    return sensor_from_rig * rig_from_world;
+    // return sensor_from_rig * rig_from_world;
+    return rig_from_world * sensor_from_rig;
   }
 }
+
 
 
 bool Frame::operator==(const Frame& other) const {
