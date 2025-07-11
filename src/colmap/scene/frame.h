@@ -181,9 +181,13 @@ Rigid3d Frame::SensorFromWorld(sensor_t sensor_id) const {
   if (rig_ptr_->IsRefSensor(sensor_id)) {
     return RigFromWorld();
   } else {
-    return rig_ptr_->SensorFromRig(sensor_id) * RigFromWorld();
+    Rigid3d sensor_from_rig = rig_ptr_->SensorFromRig(sensor_id);
+    Rigid3d rig_from_world = RigFromWorld();
+    // return sensor_from_rig * rig_from_world;
+    return rig_from_world * sensor_from_rig;
   }
 }
+
 
 bool Frame::operator==(const Frame& other) const {
   return frame_id_ == other.frame_id_ && rig_id_ == other.rig_id_ &&
