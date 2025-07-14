@@ -187,15 +187,6 @@ inline std::optional<Rigid3d>& Rig::FindSensorFromRigOrThrow(
       << "The reference sensor does not have a SensorFromRig transformation, "
          "which is fixed to identity";
 
-  // Print the requested sensor
-  std::cout << "Looking for sensor: (" << sensor_id.type << ", " << sensor_id.id << ")" << std::endl;
-
-  // Print all sensors in the map
-  std::cout << "Sensors in rig:" << std::endl;
-  for (const auto& [key, value] : sensors_from_rig_) {
-    std::cout << "  (" << key.type << ", " << key.id << ")" << std::endl;
-  }
-
   auto it = sensors_from_rig_.find(sensor_id);
 
   THROW_CHECK(it != sensors_from_rig_.end())
