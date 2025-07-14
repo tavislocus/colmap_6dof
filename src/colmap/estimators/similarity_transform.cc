@@ -74,23 +74,44 @@ inline bool EstimateRigidOrSim3dWithRotation(
     const std::vector<Eigen::Vector3d>& tgt_pos,
     const std::vector<Eigen::Quaterniond>& src_rot,
     const std::vector<Eigen::Quaterniond>& tgt_rot,
-    typename SimilarityPoseEstimator<3, kEstimateScale>::M_t& model_out)
+    Eigen::Matrix3x4d& tgt_from_src) // Matrix3x4d?? Larger for rot?
 {
-  using Estimator = SimilarityPoseEstimator<3, kEstimateScale>;
-  std::vector<typename Estimator::M_t> models;
-  Estimator::Estimate(src_pos, tgt_pos, src_rot, tgt_rot, &models);
+  std::vector<Eigen::Matrix3x4d> models;
+  SimilarityPoseEstimator<3, kEstimateScale>().Estimate(src_pos, tgt_pos, src_rot, tgt_rot, &models); // 3 dim??
   if (models.empty()) {
     return false;
   }
   THROW_CHECK_EQ(models.size(), 1);
-  model_out = models[0];
+  tgt_from_src = models[0];
   return true;
+}
+
+template <bool kEstimateScale>
+inline typename RANSAC<SimilarityTransformEstimator<3, kEstimateScale>>::Report
+EstimateRigidOrSim3dRobustWithRotation(
+  const std::vector<Eigen::Vector3d>& src_pos,
+  const std::vector<Eigen::Vector3d>& tgt_pos,
+  const std::vector<Eigen::Quaterniond>& src_rot,
+  const std::vector<Eigen::Quaterniond>& tgt_rot,
+  const RANSACOptions& options,
+  Eigen::Matrix3x4d& tgt_from_src) {
+  LORANSAC<SimilarityPoseEstimator<3, kEstimateScale>,
+           SimilarityPoseEstimator<3, kEstimateScale>>
+      ransac(options);
+  auto report = ransac.Estimate(src_pos, tgt_pos, src_rot, tgt_rot); // 3 dim??
+  if (report.success) {
+    tgt_from_src = report.model;
+  }
+  return report;
 }
 
 
 
 
 }  // namespace
+
+
+
 
 
 // Position
@@ -117,6 +138,9 @@ EstimateRigid3dRobust(const std::vector<Eigen::Vector3d>& src,
   return report;
 }
 
+
+
+
 bool EstimateSim3d(const std::vector<Eigen::Vector3d>& src,
                    const std::vector<Eigen::Vector3d>& tgt,
                    Sim3d& tgt_from_src) {
@@ -142,9 +166,11 @@ EstimateSim3dRobust(const std::vector<Eigen::Vector3d>& src,
 
 
 
+
+
+
+
 // Rotation
-
-
 bool EstimateRigid3dWithRotation(const std::vector<Eigen::Vector3d>& src_pos,
                                  const std::vector<Eigen::Vector3d>& tgt_pos,
                                  const std::vector<Eigen::Quaterniond>& src_rot,
@@ -159,6 +185,25 @@ bool EstimateRigid3dWithRotation(const std::vector<Eigen::Vector3d>& src_pos,
   tgt_from_src = Rigid3d(model.rotation, model.translation);
   return true;
 }
+
+typename RANSAC<SimilarityTransformEstimator<3, false>>::Report
+EstimateRigid3dRobustWithRotation(const std::vector<Eigen::Vector3d>& src_pos,
+                      const std::vector<Eigen::Vector3d>& tgt_pos,
+                      const std::vector<Eigen::Quaterniond>& src_rot,
+                      const std::vector<Eigen::Quaterniond>& tgt_rot,
+                      const RANSACOptions& options,
+                      Rigid3d& tgt_from_src) {
+  Eigen::Matrix3x4d tgt_from_src_mat = Eigen::Matrix3x4d::Zero();
+  auto report =
+      EstimateRigidOrSim3dRobustWithRotation<false>(src_pos, tgt_pos, src_rot, tgt_rot, options, tgt_from_src_mat);
+  tgt_from_src = Rigid3d::FromMatrix(tgt_from_src_mat);
+  return report;
+}
+
+
+
+
+
 
 bool EstimateSim3dWithRotation(const std::vector<Eigen::Vector3d>& src_pos,
                                const std::vector<Eigen::Vector3d>& tgt_pos,
@@ -175,7 +220,19 @@ bool EstimateSim3dWithRotation(const std::vector<Eigen::Vector3d>& src_pos,
 }
 
 
-
+typename RANSAC<SimilarityTransformEstimator<3, true>>::Report
+EstimateSim3dRobust(const std::vector<Eigen::Vector3d>& src_pos,
+                    const std::vector<Eigen::Vector3d>& tgt_pos,
+                    const std::vector<Eigen::Quaterniond>& src_rot,
+                    const std::vector<Eigen::Quaterniond>& tgt_rot,
+                    const RANSACOptions& options,
+                    Sim3d& tgt_from_src) {
+  Eigen::Matrix3x4d tgt_from_src_mat = Eigen::Matrix3x4d::Zero();
+  auto report =
+      EstimateRigidOrSim3dRobustWithRotation<true>(src_pos, tgt_pos, src_rot, tgt_rot, options, tgt_from_src_mat);
+  tgt_from_src = Sim3d::FromMatrix(tgt_from_src_mat);
+  return report;
+}
 
 
 

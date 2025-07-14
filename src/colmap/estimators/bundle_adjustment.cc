@@ -975,9 +975,6 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
     Rigid3d cam_from_world = image.CamFromWorld();//->SensorFromWorld();
     // NOTE - does this need to change it??
 
-
-
-
     std::shared_ptr<ceres::Problem>& problem =
         default_bundle_adjuster_->Problem();
 
@@ -1025,9 +1022,11 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
       ransac_options.max_error = 3 * max_stddev_sum / num_valid_covs;
     }
 
-    VLOG(2) << "Robustly aligning reconstruction with max_error="
-            << ransac_options.max_error;
+    LOG(INFO) << "Robustly aligning reconstruction with max_error="
+              << ransac_options.max_error;
 
+
+    // ISSUE IS HERE
     Sim3d metric_from_orig;
     const bool success = AlignReconstructionToPosePriors(
         reconstruction_, pose_priors_, ransac_options, &metric_from_orig);
@@ -1066,7 +1065,8 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
   Reconstruction& reconstruction_;
 
   std::unique_ptr<DefaultBundleAdjuster> default_bundle_adjuster_;
-  std::unique_ptr<ceres::LossFunction> prior_loss_function_;
+  std::unique_ptr<ceres::LossFunction> prior_loss_function_; 
+  std::unique_ptr<ceres::LossFunction> prior_rotation_loss_function_;
 
   Sim3d normalized_from_metric_;
 };

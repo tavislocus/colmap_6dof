@@ -237,12 +237,30 @@ bool AlignReconstructionToLocations(
   return true;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 bool AlignReconstructionToPosePriors(
     const Reconstruction& src_reconstruction,
     const std::unordered_map<image_t, PosePrior>& tgt_pose_priors,
     const RANSACOptions& ransac_options,
     Sim3d* tgt_from_src) {
-
   std::vector<Eigen::Vector3d> src_positions;
   std::vector<Eigen::Vector3d> tgt_positions;
   std::vector<Eigen::Quaterniond> src_rotations;
@@ -252,6 +270,7 @@ bool AlignReconstructionToPosePriors(
   tgt_positions.reserve(tgt_pose_priors.size());
   src_rotations.reserve(tgt_pose_priors.size());
   tgt_rotations.reserve(tgt_pose_priors.size());
+
 
   for (const image_t image_id : src_reconstruction.RegImageIds()) {
     const auto pose_prior_it = tgt_pose_priors.find(image_id);
@@ -275,15 +294,14 @@ bool AlignReconstructionToPosePriors(
     return false;
   }
 
-
   // ADD ROTATION ?
   // If enough rotation pairs, use translation+rotation alignment
   if (src_rotations.size() == src_positions.size() && src_rotations.size() >= 3) {
-    // if (ransac_options.max_error > 0) { // Focus on this afterwards - not using for now
-    //   return EstimateSim3dWithRotationRobust(src_positions, tgt_positions,
-    //                                          src_rotations, tgt_rotations,
-    //                                          ransac_options, *tgt_from_src).success;
-    // }
+    if (ransac_options.max_error > 0) { // Focus on this afterwards - not using for now
+      return EstimateSim3dWithRotationRobust(src_positions, tgt_positions,
+                                             src_rotations, tgt_rotations,
+                                             ransac_options, *tgt_from_src).success;
+    }
     return EstimateSim3dWithRotation(src_positions, tgt_positions,
                                      src_rotations, tgt_rotations,
                                      *tgt_from_src);
@@ -301,6 +319,17 @@ bool AlignReconstructionToPosePriors(
                        tgt_positions, 
                        *tgt_from_src);
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 bool AlignReconstructionsViaReprojections(
