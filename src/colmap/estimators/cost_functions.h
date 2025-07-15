@@ -375,6 +375,42 @@ struct AbsolutePosePriorCostFunctor
   const Rigid3d world_from_cam_prior_;
 };
 
+
+// struct AbsolutePosePriorCostFunctor {
+//   AbsolutePosePriorCostFunctor(const Eigen::Quaterniond& cam_from_world_prior_rotation,
+//                                const Eigen::Vector3d& cam_from_world_prior_translation) {
+//     world_from_cam_prior_rotation_ = cam_from_world_prior_rotation.conjugate();
+//     world_from_cam_prior_translation_ = 
+//         -(world_from_cam_prior_rotation_ * cam_from_world_prior_translation);
+//   }
+
+//   template <typename T>
+//   bool operator()(const T* const cam_from_world_rotation,
+//                   const T* const cam_from_world_translation,
+//                   T* residuals_ptr) const {
+//     using Vec3 = Eigen::Matrix<T, 3, 1>;
+//     using Quat = Eigen::Quaternion<T>;
+
+//     const Quat R_est = EigenQuaternionMap<T>(cam_from_world_rotation);
+//     const Vec3 t_est = EigenVector3Map<T>(cam_from_world_translation);
+
+//     const Quat R_prior = world_from_cam_prior_rotation_.cast<T>();
+//     const Vec3 t_prior = world_from_cam_prior_translation_.cast<T>();
+
+//     const Quat delta_R = R_est * R_prior;
+//     EigenQuaternionToAngleAxis(delta_R.coeffs().data(), residuals_ptr);
+
+//     Eigen::Map<Vec3> trans_residual(residuals_ptr + 3);
+//     trans_residual = t_est + R_est * t_prior;
+
+//     return true;
+//   }
+
+//  private:
+//   Eigen::Quaterniond world_from_cam_prior_rotation_;
+//   Eigen::Vector3d world_from_cam_prior_translation_;
+// };
+
 // 3-DoF error on the camera position in the world coordinate frame.
 struct AbsolutePosePositionPriorCostFunctor
     : public AutoDiffCostFunctor<AbsolutePosePositionPriorCostFunctor,

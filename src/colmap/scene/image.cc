@@ -126,6 +126,10 @@ Eigen::Vector3d Image::ViewingDirection() const {
   return CamFromWorld().rotation.toRotationMatrix().row(2);
 }
 
+Eigen::Quaterniond Image::Quat() const {
+  return CamFromWorld().rotation;
+}
+
 std::optional<Eigen::Vector2d> Image::ProjectPoint(
     const Eigen::Vector3d& point3D) const {
   THROW_CHECK(HasCameraPtr());

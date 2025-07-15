@@ -136,7 +136,10 @@ class Image {
   Eigen::Vector3d ProjectionCenter() const;
 
   // Extract the viewing direction of the image.
-  Eigen::Vector3d ViewingDirection() const;
+  Eigen::Vector3d ViewingDirection() const; 
+
+  Eigen::Quaterniond Quat() const; //RotMatrix
+
 
   // Reproject the 3D point onto the image in pixels (throws if the camera
   // object was not set). Return null if the 3D point is behind the camera.
