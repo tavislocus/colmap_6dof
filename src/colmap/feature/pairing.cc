@@ -565,7 +565,7 @@ SpatialPairGenerator::SpatialPairGenerator(
     LOG(INFO) << "=> No images with location data.";
     return;
   }
-  if (num_positions <= options_.min_num_neighbors) {
+  if (num_positions <= static_cast<size_t>(options_.min_num_neighbors)) {
     LOG(WARNING) << StringPrintf(
         "min_num_neighbors (%d) exceeds number of images with location data "
         "(%zu), this may limit the number of matched pairs.",

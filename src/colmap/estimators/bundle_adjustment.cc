@@ -879,40 +879,6 @@ class DefaultBundleAdjuster : public BundleAdjuster {
   std::unordered_map<point3D_t, size_t> point3D_num_observations_;
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ADDING ROTATION IN NOW - 
-
-
 class PosePriorBundleAdjuster : public BundleAdjuster {
  public:
   PosePriorBundleAdjuster(BundleAdjustmentOptions options,
@@ -1006,15 +972,7 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
 
     THROW_CHECK(image.HasPose());
 
-    // I HAVE REPLACED THIS - IS THAT INCORRECT?
-    // Rigid3d& cam_from_world = image.FramePtr()->RigFromWorld();
-
-    // sensor_t sensor_id = image.CameraPtr()->SensorId();
-    // Rigid3d cam_from_world = image.FramePtr()->SensorFromWorld(sensor_id);
-
     Rigid3d cam_from_world = image.CamFromWorld();
-
-    
 
     std::shared_ptr<ceres::Problem>& problem = default_bundle_adjuster_->Problem();
 
@@ -1023,7 +981,6 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
       return;
     }
 
-    // cam_from_world.rotation is normalized in AddImageToProblem()
     double* cam_from_world_rotation = cam_from_world.rotation.coeffs().data();
 
     Rigid3d cam_from_world_prior(prior.rotation, normalized_from_metric_ * prior.position);
@@ -1104,34 +1061,6 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
 
   Sim3d normalized_from_metric_;
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 }  // namespace

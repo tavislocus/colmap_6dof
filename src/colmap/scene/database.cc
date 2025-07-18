@@ -26,7 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-
+#define BOOST_BIND_GLOBAL_PLACEHOLDERS
+#include <boost/bind.hpp>
 #include <iostream>
 
 #include "colmap/scene/database.h"
@@ -1031,20 +1032,6 @@ image_t Database::WriteImage(const Image& image,
   return static_cast<image_t>(sqlite3_last_insert_rowid(database_));
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 void Database::WritePosePrior(const image_t image_id, const PosePrior& pose_prior) const {
   Sqlite3StmtContext context(sql_stmt_write_pose_prior_);
 
@@ -1058,20 +1045,6 @@ void Database::WritePosePrior(const image_t image_id, const PosePrior& pose_prio
 
   SQLITE3_CALL(sqlite3_step(sql_stmt_write_pose_prior_));
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 void Database::WriteKeypoints(const image_t image_id,
                               const FeatureKeypoints& keypoints) const {
