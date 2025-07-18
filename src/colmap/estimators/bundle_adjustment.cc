@@ -706,6 +706,7 @@ class DefaultBundleAdjuster : public BundleAdjuster {
     THROW_CHECK(image.HasTrivialFrame());
     Rigid3d& cam_from_world = image.FramePtr()->RigFromWorld();
 
+    // TODO ADD CONSTANT Z FLAG HERE
     const bool constant_cam_from_world =
         !options_.refine_rig_from_world ||
         config_.HasConstantRigFromWorldPose(image.FrameId());
@@ -923,34 +924,40 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
         prior_options_(prior_options),
         pose_priors_(std::move(pose_priors)),
         reconstruction_(reconstruction) {
-    const bool use_prior_position = AlignReconstruction();
+    const bool use_prior_pose = AlignReconstruction();
 
     // Fix 7-DOFs of BA problem if not enough valid pose priors.
-    if (use_prior_position) {
+    if (use_prior_pose) {
+      std::cout << "Adding Pose Priors" << std::endl;
+
       // Normalize the reconstruction to avoid any numerical instability but do
       // not transform priors as they will be transformed when added to
       // ceres::Problem.
       normalized_from_metric_ = reconstruction_.Normalize(/*fixed_scale=*/true);
     } else {
+      std::cout << "Not Using Poses" << std::endl;
+
       config_.FixGauge(BundleAdjustmentGauge::THREE_POINTS);
     }
 
     default_bundle_adjuster_ = std::make_unique<DefaultBundleAdjuster>(
         options_, config_, reconstruction);
 
-    if (use_prior_position) {
+    if (use_prior_pose) {
       if (prior_options_.use_robust_loss_on_prior_position) {
         prior_loss_function_ = std::make_unique<ceres::CauchyLoss>(
             prior_options_.prior_position_loss_scale);
       }
 
-      for (const image_t image_id : config_.Images()) {
-        const auto pose_prior_it = pose_priors_.find(image_id);
-        if (pose_prior_it != pose_priors_.end()) {
-          AddPosePriorToProblem(
-              image_id, pose_prior_it->second, reconstruction);
-        }
+    for (const image_t image_id : config_.Images()) {
+      const auto pose_prior_it = pose_priors_.find(image_id);
+      if (pose_prior_it != pose_priors_.end()) {
+        AddPosePriorToProblem(image_id, pose_prior_it->second, reconstruction);
+      } else {
+        std::cout << "No pose prior found for image ID: " << image_id << std::endl;
       }
+    }
+
     }
   }
 
@@ -998,10 +1005,18 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
     }
 
     THROW_CHECK(image.HasPose());
-    Rigid3d& cam_from_world = image.FramePtr()->RigFromWorld();
 
-    std::shared_ptr<ceres::Problem>& problem =
-        default_bundle_adjuster_->Problem();
+    // I HAVE REPLACED THIS - IS THAT INCORRECT?
+    // Rigid3d& cam_from_world = image.FramePtr()->RigFromWorld();
+
+    // sensor_t sensor_id = image.CameraPtr()->SensorId();
+    // Rigid3d cam_from_world = image.FramePtr()->SensorFromWorld(sensor_id);
+
+    Rigid3d cam_from_world = image.CamFromWorld();
+
+    
+
+    std::shared_ptr<ceres::Problem>& problem = default_bundle_adjuster_->Problem();
 
     double* cam_from_world_translation = cam_from_world.translation.data();
     if (!problem->HasParameterBlock(cam_from_world_translation)) {
@@ -1012,6 +1027,7 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
     double* cam_from_world_rotation = cam_from_world.rotation.coeffs().data();
 
     Rigid3d cam_from_world_prior(prior.rotation, normalized_from_metric_ * prior.position);
+    
     problem->AddResidualBlock(
         CovarianceWeightedCostFunctor<AbsolutePosePriorCostFunctor>::
             Create(prior.covariance,

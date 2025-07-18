@@ -116,6 +116,9 @@ class BundleAdjustmentConfig {
   std::unordered_set<point3D_t> constant_point3D_ids_;
   std::unordered_set<sensor_t> constant_sensor_from_rig_poses_;
   std::unordered_set<frame_t> constant_rig_from_world_poses_;
+
+  std::unordered_set<frame_t> fixed_z_rig_from_world_poses_;
+
 };
 
 struct BundleAdjustmentOptions {
