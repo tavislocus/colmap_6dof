@@ -520,12 +520,10 @@ void FixGaugeWithTwoCamsFromWorld(
   Eigen::Index frame2_from_world_fixed_dim = 0;
   for (const image_t image_id : image_ids) {
     Image& image = reconstruction.Image(image_id);
-    if (image1 == nullptr && 
-        image.FramePtr()->RigPtr()->IsRefSensor(image.CameraPtr()->SensorId())) {
+    if (image1 == nullptr && IsParameterizedRefSensor(image)) {
       image1 = &image;
-    } else if (image1 != nullptr && 
-               image1->FrameId() != image.FrameId() &&
-               image.FramePtr()->RigPtr()->IsRefSensor(image.CameraPtr()->SensorId())) {
+    } else if (image1 != nullptr && image1->FrameId() != image.FrameId() &&
+               IsParameterizedRefSensor(image)) {
       // Check if one of the baseline dimensions is large enough and
       // choose it as the fixed coordinate. If there is no such pair of
       // frames, then the scale is not constrained well.
