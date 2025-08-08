@@ -30,6 +30,7 @@
 #pragma once
 
 #include "colmap/optim/ransac.h"
+#include "colmap/optim/ransac.h"
 #include "colmap/scene/reconstruction.h"
 #include "colmap/util/eigen_alignment.h"
 #include "colmap/util/enum_utils.h"
