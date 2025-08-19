@@ -31,6 +31,16 @@
 
 namespace colmap {
 
+std::ostream& operator<<(std::ostream& stream, const PositionPrior& prior) {
+  const static Eigen::IOFormat kVecFmt(
+      Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", ", ");
+  stream << "PositionPrior(position=[" << prior.position.format(kVecFmt)
+         << "], position_covariance=["
+         << prior.position_covariance.format(kVecFmt) << "], coordinate_system="
+         << PositionPrior::CoordinateSystemToString(prior.coordinate_system) << ")";
+  return stream;
+}
+
 std::ostream& operator<<(std::ostream& stream, const PosePrior& prior) {
   const static Eigen::IOFormat kVecFmt(
       Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", ", ");

@@ -237,53 +237,36 @@ bool AlignReconstructionToLocations(
   return true;
 }
 
+bool AlignReconstructionToPositionPriors(
+    const Reconstruction& src_reconstruction,
+    const std::unordered_map<image_t, PositionPrior>& tgt_pose_priors,
+    const RANSACOptions& ransac_options,
+    Sim3d* tgt_from_src) {
+  std::vector<Eigen::Vector3d> src;
+  std::vector<Eigen::Vector3d> tgt;
+  src.reserve(tgt_pose_priors.size());
+  tgt.reserve(tgt_pose_priors.size());
 
+  for (const image_t image_id : src_reconstruction.RegImageIds()) {
+    const auto pose_prior_it = tgt_pose_priors.find(image_id);
+    if (pose_prior_it != tgt_pose_priors.end() &&
+        pose_prior_it->second.IsValid()) {
+      const auto& image = src_reconstruction.Image(image_id);
+      src.push_back(image.ProjectionCenter());
+      tgt.push_back(pose_prior_it->second.position);
+    }
+  }
 
+  if (src.size() < 3) {
+    LOG(WARNING) << "Not enough valid pose priors for alignment";
+    return false;
+  }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// bool AlignReconstructionToPosePriors(
-//     const Reconstruction& src_reconstruction,
-//     const std::unordered_map<image_t, PosePrior>& tgt_pose_priors,
-//     const RANSACOptions& ransac_options,
-//     Sim3d* tgt_from_src) {
-//   std::vector<Eigen::Vector3d> src;
-//   std::vector<Eigen::Vector3d> tgt;
-//   src.reserve(tgt_pose_priors.size());
-//   tgt.reserve(tgt_pose_priors.size());
-
-//   for (const image_t image_id : src_reconstruction.RegImageIds()) {
-//     const auto pose_prior_it = tgt_pose_priors.find(image_id);
-//     if (pose_prior_it != tgt_pose_priors.end() && pose_prior_it->second.IsValid()) {
-//       const auto& image = src_reconstruction.Image(image_id);
-//       src.push_back(image.ProjectionCenter());
-//       tgt.push_back(pose_prior_it->second.position);
-//     }
-//   }
-
-//   if (src.size() < 3) {
-//     LOG(WARNING) << "Not enough valid pose priors for alignment";
-//     return false;
-//   }
-
-//   if (ransac_options.max_error > 0) {
-//     return EstimateSim3dRobust(src, tgt, ransac_options, *tgt_from_src).success;
-//   }
-//   return EstimateSim3d(src, tgt, *tgt_from_src);
-// }
+  if (ransac_options.max_error > 0) {
+    return EstimateSim3dRobust(src, tgt, ransac_options, *tgt_from_src).success;
+  }
+  return EstimateSim3d(src, tgt, *tgt_from_src);
+}
 
 bool AlignReconstructionToPosePriors(
     const Reconstruction& src_reconstruction,
@@ -334,14 +317,6 @@ bool AlignReconstructionToPosePriors(
 
   return EstimateSim3d(src_pts, tgt_pts, *tgt_from_src);
 }
-
-
-
-
-
-
-
-
 
 bool AlignReconstructionsViaReprojections(
     const Reconstruction& src_reconstruction,

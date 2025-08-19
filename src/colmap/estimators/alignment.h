@@ -44,6 +44,13 @@ bool AlignReconstructionToLocations(
     const RANSACOptions& ransac_options,
     Sim3d* tgt_from_src);
 
+// Robustly align reconstruction to given pose positions.
+bool AlignReconstructionToPositionPriors(
+    const Reconstruction& src_reconstruction,
+    const std::unordered_map<image_t, PositionPrior>& tgt_pose_priors,
+    const RANSACOptions& ransac_options,
+    Sim3d* tgt_from_src);
+
 // Robustly align reconstruction to given pose priors.
 bool AlignReconstructionToPosePriors(
     const Reconstruction& src_reconstruction,

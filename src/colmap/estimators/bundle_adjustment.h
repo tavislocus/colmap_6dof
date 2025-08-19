@@ -29,6 +29,7 @@
 
 #pragma once
 
+#include "colmap/optim/ransac.h"
 #include "colmap/scene/reconstruction.h"
 #include "colmap/util/eigen_alignment.h"
 #include "colmap/util/enum_utils.h"
@@ -197,6 +198,18 @@ struct BundleAdjustmentOptions {
   bool Check() const;
 };
 
+struct PositionPriorBundleAdjustmentOptions {
+  // Whether to use a robust loss on prior locations.
+  bool use_robust_loss_on_prior_position = false;
+
+  // Threshold on the residual for the robust loss
+  // (chi2 for 3DOF at 95% = 7.815).
+  double prior_position_loss_scale = 7.815;
+
+  // Sim3 alignment options.
+  RANSACOptions alignment_ransac_options;
+};
+
 struct PosePriorBundleAdjustmentOptions {
   // Whether to use a robust loss on prior locations.
   bool use_robust_loss_on_prior_position = false;
@@ -238,6 +251,13 @@ class BundleAdjuster {
 std::unique_ptr<BundleAdjuster> CreateDefaultBundleAdjuster(
     BundleAdjustmentOptions options,
     BundleAdjustmentConfig config,
+    Reconstruction& reconstruction);
+
+std::unique_ptr<BundleAdjuster> CreatePositionPriorBundleAdjuster(
+    BundleAdjustmentOptions options,
+    PositionPriorBundleAdjustmentOptions prior_options,
+    BundleAdjustmentConfig config,
+    std::unordered_map<image_t, PosePrior> pose_priors,
     Reconstruction& reconstruction);
 
 std::unique_ptr<BundleAdjuster> CreatePosePriorBundleAdjuster(

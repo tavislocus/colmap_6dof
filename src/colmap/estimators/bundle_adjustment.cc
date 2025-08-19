@@ -879,6 +879,186 @@ class DefaultBundleAdjuster : public BundleAdjuster {
   std::unordered_map<point3D_t, size_t> point3D_num_observations_;
 };
 
+class PositionPriorBundleAdjuster : public BundleAdjuster {
+ public:
+  PositionPriorBundleAdjuster(BundleAdjustmentOptions options,
+                          PositionPriorBundleAdjustmentOptions prior_options,
+                          BundleAdjustmentConfig config,
+                          std::unordered_map<image_t, PositionPrior> pose_priors,
+                          Reconstruction& reconstruction)
+      : BundleAdjuster(std::move(options), std::move(config)),
+        prior_options_(prior_options),
+        pose_priors_(std::move(pose_priors)),
+        reconstruction_(reconstruction) {
+    const bool use_prior_position = AlignReconstruction();
+
+    // Fix 7-DOFs of BA problem if not enough valid pose priors.
+    if (use_prior_position) {
+      // Normalize the reconstruction to avoid any numerical instability but
+      // do not transform priors as they will be transformed when added to
+      // ceres::Problem.
+      normalized_from_metric_ = reconstruction_.Normalize(/*fixed_scale=*/true);
+    } else {
+      config_.FixGauge(BundleAdjustmentGauge::THREE_POINTS);
+    }
+
+    default_bundle_adjuster_ = std::make_unique<DefaultBundleAdjuster>(
+        options_, config_, reconstruction);
+
+    if (use_prior_position) {
+      if (prior_options_.use_robust_loss_on_prior_position) {
+        prior_loss_function_ = std::make_unique<ceres::CauchyLoss>(
+            prior_options_.prior_position_loss_scale);
+      }
+
+      for (const image_t image_id : config_.Images()) {
+        const auto pose_prior_it = pose_priors_.find(image_id);
+        if (pose_prior_it != pose_priors_.end()) {
+          AddPositionPriorToProblem(
+              image_id, pose_prior_it->second, reconstruction);
+        }
+      }
+    }
+  }
+
+  ceres::Solver::Summary Solve() override {
+    ceres::Solver::Summary summary;
+    std::shared_ptr<ceres::Problem> problem =
+        default_bundle_adjuster_->Problem();
+    if (problem->NumResiduals() == 0) {
+      return summary;
+    }
+
+    const ceres::Solver::Options solver_options =
+        options_.CreateSolverOptions(config_, *problem);
+
+    ceres::Solve(solver_options, problem.get(), &summary);
+
+    reconstruction_.Transform(Inverse(normalized_from_metric_));
+
+    if (options_.print_summary || VLOG_IS_ON(1)) {
+      PrintSolverSummary(summary, "Pose Prior Bundle adjustment report");
+    }
+
+    return summary;
+  }
+
+  std::shared_ptr<ceres::Problem>& Problem() override {
+    return default_bundle_adjuster_->Problem();
+  }
+
+  void AddPositionPriorToProblem(image_t image_id,
+                             const PositionPrior& prior,
+                             Reconstruction& reconstruction) {
+    if (!prior.IsValid() || !prior.IsCovarianceValid()) {
+      LOG(ERROR) << "Could not add prior for image #" << image_id;
+      return;
+    }
+
+    Image& image = reconstruction.Image(image_id);
+    if (!image.HasTrivialFrame()) {
+      // TODO(jsch): Only enforce the pose prior on the reference sensor. This
+      // fails if only a non-reference sensor image has a corresponding pose
+      // prior stored. This will be replaced with dedicated modeling of a
+      // GNSS/GPS sensor.
+      return;
+    }
+
+    THROW_CHECK(image.HasPose());
+    Rigid3d& cam_from_world = image.FramePtr()->RigFromWorld();
+
+    std::shared_ptr<ceres::Problem>& problem =
+        default_bundle_adjuster_->Problem();
+
+    double* cam_from_world_translation = cam_from_world.translation.data();
+    if (!problem->HasParameterBlock(cam_from_world_translation)) {
+      return;
+    }
+
+    // cam_from_world.rotation is normalized in AddImageToProblem()
+    double* cam_from_world_rotation = cam_from_world.rotation.coeffs().data();
+
+    problem->AddResidualBlock(
+        CovarianceWeightedCostFunctor<AbsolutePosePositionPriorCostFunctor>::
+            Create(prior.position_covariance,
+                   normalized_from_metric_ * prior.position),
+        prior_loss_function_.get(),
+        cam_from_world_rotation,
+        cam_from_world_translation);
+  }
+
+  bool AlignReconstruction() {
+    RANSACOptions ransac_options = prior_options_.alignment_ransac_options;
+    if (ransac_options.max_error <= 0) {
+      double max_stddev_sum = 0;
+      size_t num_valid_covs = 0;
+      for (const auto& [_, pose_prior] : pose_priors_) {
+        if (pose_prior.IsCovarianceValid()) {
+          const double max_stddev =
+              std::sqrt(Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(
+                            pose_prior.position_covariance)
+                            .eigenvalues()
+                            .maxCoeff());
+          max_stddev_sum += max_stddev;
+          ++num_valid_covs;
+        }
+      }
+      if (num_valid_covs == 0) {
+        LOG(WARNING) << "No pose priors with valid covariance found.";
+        return false;
+      }
+      // Set max error at the 3 sigma confidence interval. Assumes no
+      // outliers.
+      ransac_options.max_error = 3 * max_stddev_sum / num_valid_covs;
+    }
+
+    VLOG(2) << "Robustly aligning reconstruction with max_error="
+            << ransac_options.max_error;
+
+    Sim3d metric_from_orig;
+    const bool success = AlignReconstructionToPositionPriors(
+        reconstruction_, pose_priors_, ransac_options, &metric_from_orig);
+
+    if (success) {
+      reconstruction_.Transform(metric_from_orig);
+    } else {
+      LOG(WARNING) << "Alignment w.r.t. prior positions failed";
+    }
+
+    if (VLOG_IS_ON(2) && success) {
+      std::vector<double> verr2_wrt_prior;
+      verr2_wrt_prior.reserve(reconstruction_.NumRegImages());
+      for (const image_t image_id : reconstruction_.RegImageIds()) {
+        const auto pose_prior_it = pose_priors_.find(image_id);
+        if (pose_prior_it != pose_priors_.end() &&
+            pose_prior_it->second.IsValid()) {
+          const auto& image = reconstruction_.Image(image_id);
+          verr2_wrt_prior.push_back(
+              (image.ProjectionCenter() - pose_prior_it->second.position)
+                  .squaredNorm());
+        }
+      }
+
+      VLOG(2) << "Alignment error w.r.t. prior positions:\n"
+              << "  - rmse:   " << std::sqrt(Mean(verr2_wrt_prior)) << '\n'
+              << "  - median: " << std::sqrt(Median(verr2_wrt_prior)) << '\n';
+    }
+
+    return success;
+  }
+
+ private:
+  const PositionPriorBundleAdjustmentOptions prior_options_;
+  const std::unordered_map<image_t, PositionPrior> pose_priors_;
+  Reconstruction& reconstruction_;
+
+  std::unique_ptr<DefaultBundleAdjuster> default_bundle_adjuster_;
+  std::unique_ptr<ceres::LossFunction> prior_loss_function_;
+
+  Sim3d normalized_from_metric_;
+};
+
+
 class PosePriorBundleAdjuster : public BundleAdjuster {
  public:
   PosePriorBundleAdjuster(BundleAdjustmentOptions options,
@@ -1071,6 +1251,19 @@ std::unique_ptr<BundleAdjuster> CreateDefaultBundleAdjuster(
     Reconstruction& reconstruction) {
   return std::make_unique<DefaultBundleAdjuster>(
       std::move(options), std::move(config), reconstruction);
+}
+
+std::unique_ptr<BundleAdjuster> CreatePositionPriorBundleAdjuster(
+    BundleAdjustmentOptions options,
+    PositionPriorBundleAdjustmentOptions prior_options,
+    BundleAdjustmentConfig config,
+    std::unordered_map<image_t, PositionPrior> pose_priors,
+    Reconstruction& reconstruction) {
+  return std::make_unique<PositionPriorBundleAdjuster>(std::move(options),
+                                                   prior_options,
+                                                   std::move(config),
+                                                   std::move(pose_priors),
+                                                   reconstruction);
 }
 
 std::unique_ptr<BundleAdjuster> CreatePosePriorBundleAdjuster(
