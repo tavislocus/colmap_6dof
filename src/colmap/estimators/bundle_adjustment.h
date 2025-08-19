@@ -210,6 +210,18 @@ struct PositionPriorBundleAdjustmentOptions {
   RANSACOptions alignment_ransac_options;
 };
 
+struct PositionPriorBundleAdjustmentOptions {
+  // Whether to use a robust loss on prior locations.
+  bool use_robust_loss_on_prior_position = false;
+
+  // Threshold on the residual for the robust loss
+  // (chi2 for 3DOF at 95% = 7.815).
+  double prior_position_loss_scale = 7.815;
+
+  // Sim3 alignment options.
+  RANSACOptions alignment_ransac_options;
+};
+
 struct PosePriorBundleAdjustmentOptions {
   // Whether to use a robust loss on prior locations.
   bool use_robust_loss_on_prior_position = false;

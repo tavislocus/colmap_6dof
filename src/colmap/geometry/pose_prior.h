@@ -40,6 +40,56 @@
 #include <Eigen/Geometry>  
 
 namespace colmap {
+  
+struct PositionPrior {
+ public:
+  MAKE_ENUM_CLASS(CoordinateSystem,
+                  -1,
+                  UNDEFINED,  // = -1
+                  WGS84,      // = 0
+                  CARTESIAN   // = 1
+  );
+
+  Eigen::Vector3d position =
+      Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN());
+  Eigen::Matrix3d position_covariance =
+      Eigen::Matrix3d::Constant(std::numeric_limits<double>::quiet_NaN());
+  CoordinateSystem coordinate_system = CoordinateSystem::UNDEFINED;
+
+  PositionPrior() = default;
+  explicit PositionPrior(const Eigen::Vector3d& position) : position(position) {}
+  PositionPrior(const Eigen::Vector3d& position, const CoordinateSystem system)
+      : position(position), coordinate_system(system) {}
+  PositionPrior(const Eigen::Vector3d& position, const Eigen::Matrix3d& covariance)
+      : position(position), position_covariance(covariance) {}
+  PositionPrior(const Eigen::Vector3d& position,
+            const Eigen::Matrix3d& covariance,
+            const CoordinateSystem system)
+      : position(position),
+        position_covariance(covariance),
+        coordinate_system(system) {}
+
+  inline bool IsValid() const { return position.allFinite(); }
+  inline bool IsCovarianceValid() const {
+    return position_covariance.allFinite();
+  }
+
+  inline bool operator==(const PositionPrior& other) const;
+  inline bool operator!=(const PositionPrior& other) const;
+};
+
+std::ostream& operator<<(std::ostream& stream, const PositionPrior& prior);
+
+bool PositionPrior::operator==(const PositionPrior& other) const {
+  return coordinate_system == other.coordinate_system &&
+         position == other.position &&
+         position_covariance == other.position_covariance;
+}
+
+bool PositionPrior::operator!=(const PositionPrior& other) const {
+  return !(*this == other);
+}
+
 
 struct PositionPrior {
  public:
