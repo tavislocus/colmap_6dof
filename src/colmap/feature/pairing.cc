@@ -101,6 +101,11 @@ bool ExistingMatchedPairingOptions::Check() const {
   return true;
 }
 
+bool ExistingMatchedPairingOptions::Check() const {
+  CHECK_OPTION_GT(batch_size, 1);
+  return true;
+}
+
 bool ExhaustivePairingOptions::Check() const {
   CHECK_OPTION_GT(block_size, 1);
   return true;
