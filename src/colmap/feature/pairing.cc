@@ -569,7 +569,7 @@ SpatialPairGenerator::SpatialPairGenerator(
     LOG(INFO) << "=> No images with location data.";
     return;
   }
-  if (num_positions <= static_cast<size_t>(options_.min_num_neighbors)) {
+  if (num_positions <= options_.min_num_neighbors) {
     LOG(WARNING) << StringPrintf(
         "min_num_neighbors (%d) exceeds number of images with location data "
         "(%zu), this may limit the number of matched pairs.",
@@ -851,60 +851,6 @@ std::vector<std::pair<image_t, image_t>> ImportedPairGenerator::Next() {
   }
   pair_idx_ += options_.block_size;
   return block_image_pairs_;
-}
-
-ExistingMatchedPairGenerator::ExistingMatchedPairGenerator(
-    const ExistingMatchedPairingOptions& options,
-    const std::shared_ptr<FeatureMatcherCache>& cache)
-    : options_(options) {
-  THROW_CHECK(options.Check());
-  LOG(INFO) << "Generating existing image pairs...";
-  cache->AccessDatabase([this](Database& database) {
-    auto num_matches = database.ReadNumMatches();
-    image_pairs_.reserve(num_matches.size());
-    for (const auto& [pair_id, _] : num_matches) {
-      image_pairs_.emplace_back(PairIdToImagePair(pair_id));
-    }
-  });
-  num_batches_ =
-      std::ceil(static_cast<double>(image_pairs_.size()) / options_.batch_size);
-}
-
-ExistingMatchedPairGenerator::ExistingMatchedPairGenerator(
-    const ExistingMatchedPairingOptions& options,
-    const std::shared_ptr<Database>& database)
-    : ExistingMatchedPairGenerator(
-          options,
-          std::make_shared<FeatureMatcherCache>(
-              options.CacheSize(), THROW_CHECK_NOTNULL(database))) {}
-
-void ExistingMatchedPairGenerator::Reset() { start_idx_ = 0; }
-
-bool ExistingMatchedPairGenerator::HasFinished() const {
-  return start_idx_ >= image_pairs_.size();
-}
-
-std::vector<std::pair<image_t, image_t>> ExistingMatchedPairGenerator::Next() {
-  if (HasFinished()) {
-    return {};
-  }
-
-  const size_t end_idx =
-      std::min(start_idx_ + options_.batch_size, image_pairs_.size());
-
-  std::vector<std::pair<image_t, image_t>> batch;
-  batch.reserve(end_idx - start_idx_);
-  for (size_t idx = start_idx_; idx < end_idx; ++idx) {
-    batch.emplace_back(image_pairs_[idx]);
-  }
-
-  LOG(INFO) << StringPrintf("Processing batch [%d/%d]",
-                            start_idx_ / options_.batch_size + 1,
-                            num_batches_);
-
-  start_idx_ = end_idx;
-
-  return batch;
 }
 
 ExistingMatchedPairGenerator::ExistingMatchedPairGenerator(

@@ -228,15 +228,6 @@ struct PosePriorBundleAdjustmentOptions {
   // (chi2 for 3DOF at 95% = 7.815).
   double prior_rotation_loss_scale = 7.815; // TODO <- set this
 
-  bool use_prior_rotation = false; // enable
-
-  // Whether to use a robust loss on prior orientations.
-  bool use_robust_loss_on_prior_rotation = false;
-
-  // Threshold on the residual for the robust loss
-  // (chi2 for 3DOF at 95% = 7.815).
-  double prior_rotation_loss_scale = 7.815; // TODO <- set this
-
   // Sim3 alignment options.
   RANSACOptions alignment_ransac_options;
 };
@@ -267,7 +258,7 @@ std::unique_ptr<BundleAdjuster> CreatePositionPriorBundleAdjuster(
     BundleAdjustmentOptions options,
     PositionPriorBundleAdjustmentOptions prior_options,
     BundleAdjustmentConfig config,
-    std::unordered_map<image_t, PosePrior> pose_priors,
+    std::unordered_map<image_t, PositionPrior> pose_priors,
     Reconstruction& reconstruction);
 
 std::unique_ptr<BundleAdjuster> CreatePosePriorBundleAdjuster(
